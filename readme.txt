@@ -120,19 +120,35 @@ pc to run since his has 12 cores. I can't use it all the time cause he's working
 I can't debug as much. I made a version for 4 processors that I can run on my computer
 as well. It actually gives me errors so it doesn't finish the process properly, but
 I printed out the times before the program gave me the segmentation fault, so I have
-the results of the strassen time, just not the final matrix. These are the results:
+the results of the strassen time, just not the final matrix. So it only has the 
+partial time for it and not how long it takes to do the final process of uniting
+the matrixes.
+
+
+DEC 5 2023
+
+I fixed the problem so I should be able to run MPI-4 and MPI-8 properly now. I fixed it by
+removing the count variable and just making the function strassensub, which is what
+the worker processes call. These are the times:
+
 
 2^7
 
-MPI-4: 0.013509s 
-MPI-8: 0.001963s
+MPI-4: 0.005079s 
+MPI-8: 0.001418s
 
 
 2^8
 
-MPI-4: 0.089994s
-MPI-8: 0.010599s
+MPI-4: 0.044847s
+MPI-8: 0.009144s
 
+2^9
 
-For 2^9 and 2^10 it gave me too many errors to fix. I don't understand what causes it.
+MPI-4: 1.734129s
+MPI-8: 0.351249s
 
+2^10
+
+MPI-4: killed
+MPI-8: 8.448492s

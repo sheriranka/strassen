@@ -64,10 +64,10 @@ void allocateMatrix(int n, int** matrix){
 	for(int i = 0; i < n; i++)
 		matrix[i] = malloc(n*sizeof(int));
 	
-	for(int i = 0; i  < n; i++){
-		for(int j = 0; j < n; j++)
-			matrix[i][j] = 0;
-	}
+	//for(int i = 0; i  < n; i++){
+	//	for(int j = 0; j < n; j++)
+	//		matrix[i][j] = 0;
+	//}
 	
 }
 
@@ -96,7 +96,6 @@ void combineMatrix(int n, int** A11, int** A12, int** A21, int** A22, int** matr
 	
 	
 	int m = n/2;
-	allocateMatrix(n,matrix);
 	
 	//-m for index on submatrixes to big matrix
 	//#pragma omp parallel for collapse(2)
@@ -172,25 +171,17 @@ void regularMult(int n, int** A, int** B, int** C){
 	
 }
 
-
-void strassen(int** A, int** B, int** C, int n, int rank, int count){
+void strassensub(int** A, int** B, int** C, int n){
 	
-	//n is size of array, rows or columns
-	//doesnt matter bc its square
 	
-	//printf("Size of mat is %d\n", n);
-	
-
 	if(n <= 32){
 		
 		regularMult(n, A, B, C);
-	}
-	else{
-		
+	}else{
 		
 		int m = n/2;
 		
-		
+		//printf("process %d\n", rank);
 		
 		//ASSIGN SUBMATRIXES
 		
@@ -234,9 +225,6 @@ void strassen(int** A, int** B, int** C, int n, int rank, int count){
 		
 		//printf("B22 calculated\n");
 		
-		//SPAWN THREADS
-		//DIVIDE MPI PROCESSES
-		
 		
 		int* P1[m];
 		allocateMatrix(m,P1);
@@ -252,197 +240,30 @@ void strassen(int** A, int** B, int** C, int n, int rank, int count){
 		allocateMatrix(m,P6);
 		int* P7[m];
 		allocateMatrix(m,P7);
-		
-		
-		if(count == 0){
-				
-			if(rank == 0)
-			{
-				//matrix all. rank 0 needs access to all matrixes so recv
-				//source = which processor rank
-				printf("process %d\n", rank);
-				
-				//P1
-				int* S1[m];
-				subsMatrix(m, B12, B22, S1);
-				strassen(A11, S1, P1, m, 0, 1);
-				freeMat(m, S1);
-				//MPI_Recv(&(P1[0][0]), m*m, MPI_INT, 1, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-				
-				MPI_Recv(&(P2[0][0]), m*m, MPI_INT, 1, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-				MPI_Recv(&(P3[0][0]), m*m, MPI_INT, 1, 1, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-				MPI_Recv(&(P4[0][0]), m*m, MPI_INT, 2, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-				MPI_Recv(&(P5[0][0]), m*m, MPI_INT, 2, 1, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-				MPI_Recv(&(P6[0][0]), m*m, MPI_INT, 3, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-				MPI_Recv(&(P7[0][0]), m*m, MPI_INT, 3, 1, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-				
 			
-			}
-			else if(rank == 1){
-				
-				printf("process %d\n", rank);
-				int* S2[m];
-				addMatrix(m, A11, A12, S2);
-				strassen(S2, B22, P2, m, 0, 1);
-				freeMat(m, S2);
-				MPI_Send(&(P2[0][0]), m*m, MPI_INT, 0, 0, MPI_COMM_WORLD);
-				
-				int* S3[m];
-				addMatrix(m, A21, A22, S3);
-				strassen(S3, B11, P3, m, 0, 1);
-				freeMat(m, S3);
-				MPI_Send(&(P3[0][0]), m*m, MPI_INT, 0, 1, MPI_COMM_WORLD);
-				
-				
-			}
-			
-			else if(rank == 2){
-				printf("process %d\n", rank);
-				
-				int* S4[m];
-				subsMatrix(m, B21, B11, S4);
-				strassen(A22, S4, P4, m, 0, 1);			
-				freeMat(m, S4);
-				MPI_Send(&(P4[0][0]), m*m, MPI_INT, 0, 0, MPI_COMM_WORLD);
-				
-				
-				int* S5[m];
-				int* S6[m];
-				addMatrix(m, A11, A22, S5);
-				addMatrix(m, B11, B22, S6);
-				strassen(S5, S6, P5, m, 0, 1);
-				freeMat(m, S5);
-				freeMat(m, S6);
-				MPI_Send(&(P5[0][0]), m*m, MPI_INT, 0, 1, MPI_COMM_WORLD);
-			}
-			
-			
-			else if(rank == 3){
-				printf("process %d\n", rank);
-				
-				int* S7[m];
-				int* S8[m];
-				subsMatrix(m, A12, A22, S7);
-				addMatrix(m, B21, B22, S8);		
-				strassen(S7, S8, P6, m, 0, 1);
-				freeMat(m, S7);
-				freeMat(m, S8);
-				MPI_Send(&(P6[0][0]), m*m, MPI_INT, 0, 0, MPI_COMM_WORLD);
-				
-				int* S9[m];
-				int* S10[m];
-				subsMatrix(m, A11, A21, S9);
-				addMatrix(m, B11, B12, S10);
-				strassen(S9, S10, P7, m, 0, 1);
-				freeMat(m, S9);
-				freeMat(m, S10);
-				MPI_Send(&(P7[0][0]), m*m, MPI_INT, 0, 1, MPI_COMM_WORLD);
-				
-			}
-			
-			MPI_Barrier(MPI_COMM_WORLD);
-			
-			freeMat(m, A11);
-			freeMat(m, A12);
-			freeMat(m, A21);
-			freeMat(m, A22);
-			freeMat(m, B11);
-			freeMat(m, B12);
-			freeMat(m, B21);
-			freeMat(m, B22);
-			
-			
-			
-			if(rank == 0){
-		
-			int* C11[m];
-		
-
-			//printf("Starting C11\n");
-			int* P56[m];
-			int* P42[m];
-			
-			addMatrix(m, P5, P6, P56);
-			subsMatrix(m, P4, P2, P42);
-			
-			//printf("subsMatrix\n");
-			addMatrix(m, P56, P42, C11);
-			
-			freeMat(m, P56);
-			freeMat(m, P42);
-			//printf("Finished C11\n");
-
-		
-		
-			int* C12[m];
-		
-
-			//printf("Starting C12\n");
-			addMatrix(m, P1, P2, C12);
-			//printf("Finished C12\n");
-			
-
-		
-			int* C21[m];
-		
-
-			
-			//printf("Starting C21\n");
-			addMatrix(m, P3, P4, C21);
-			//printf("Finished C21\n");
-			
-
-		
-			int* C22[m];
-		
-
-			//printf("Starting C22\n");	
-			int* P37[m];
-			int* P51[m];
-			subsMatrix(m, P5, P7, P37);
-			subsMatrix(m, P1, P3, P51);
-			
-			//printf("subsMatrix\n");		
-			addMatrix(m, P51, P37, C22);
-				
-			freeMat(m, P51);
-			freeMat(m, P37);
-			//printf("Finished C22\n");
-
-			combineMatrix(n, C11, C12, C21, C22, C);
-		
-			freeMat(m, C11);
-			freeMat(m, C12);
-			freeMat(m, C21);
-			freeMat(m, C22);
-		
-		}
-		}else{
-			
-			//p1
 			
 			int* S1[m];
 			subsMatrix(m, B12, B22, S1);
-			strassen(A11, S1, P1, m, 0, 1);
+			strassensub(A11, S1, P1, m);
 			freeMat(m, S1);	
 			
 			
 			//p2
 			int* S2[m];
 			addMatrix(m, A11, A12, S2);
-			strassen(S2, B22, P2, m, 0, 1);
+			strassensub(S2, B22, P2, m);
 			freeMat(m, S2);
 			
 			//p3
 			int* S3[m];
 			addMatrix(m, A21, A22, S3);
-			strassen(S3, B11, P3, m, 0, 1);
+			strassensub(S3, B11, P3, m);
 			freeMat(m, S3);
 			
 			//p4
 			int* S4[m];
 			subsMatrix(m, B21, B11, S4);
-			strassen(A22, S4, P4, m, 0, 1);			
+			strassensub(A22, S4, P4, m);			
 			freeMat(m, S4);
 			
 			//p5
@@ -450,7 +271,7 @@ void strassen(int** A, int** B, int** C, int n, int rank, int count){
 			int* S6[m];
 			addMatrix(m, A11, A22, S5);
 			addMatrix(m, B11, B22, S6);
-			strassen(S5, S6, P5, m, 0, 1);
+			strassensub(S5, S6, P5, m);
 			freeMat(m, S5);
 			freeMat(m, S6);
 			
@@ -459,7 +280,7 @@ void strassen(int** A, int** B, int** C, int n, int rank, int count){
 			int* S8[m];
 			subsMatrix(m, A12, A22, S7);
 			addMatrix(m, B21, B22, S8);		
-			strassen(S7, S8, P6, m, 0, 1);
+			strassensub(S7, S8, P6, m);
 			freeMat(m, S7);
 			freeMat(m, S8);
 			
@@ -468,7 +289,7 @@ void strassen(int** A, int** B, int** C, int n, int rank, int count){
 			int* S10[m];
 			subsMatrix(m, A11, A21, S9);
 			addMatrix(m, B11, B12, S10);
-			strassen(S9, S10, P7, m, 0, 1);
+			strassensub(S9, S10, P7, m);
 			freeMat(m, S9);
 			freeMat(m, S10);	
 			
@@ -544,8 +365,257 @@ void strassen(int** A, int** B, int** C, int n, int rank, int count){
 			freeMat(m, C12);
 			freeMat(m, C21);
 			freeMat(m, C22);
+	
+	}
+}
+
+
+void strassen(int** A, int** B, int** C, int n, int rank){
+	
+	//n is size of array, rows or columns
+	//doesnt matter bc its square
+	
+	//printf("Size of mat is %d\n", n);
+	
+
+	if(n <= 32){
+		
+		regularMult(n, A, B, C);
+	}
+	else{
+		
+		
+		int m = n/2;
+		
+		//printf("process %d\n", rank);
+		
+		
+		
+		//ASSIGN SUBMATRIXES
+		
+		int* A11[m];
+		subMatrix(n, A, 0, 0, A11);
+		
+		//printf("A11 calculated\n");
+		
+		int* A12[m];
+		subMatrix(n, A, 0, m, A12);
+		
+		//printf("A12 calculated\n");
+		
+		int* A21[m];
+		subMatrix(n, A, m, 0, A21);
+		
+		//printf("A21 calculated\n");
+		
+		int* A22[m];
+		subMatrix(n, A, m, m, A22);
+		
+		//printf("A22 calculated\n");
+		
+		int* B11[m];
+		subMatrix(n, B, 0, 0, B11);
+		
+		//printf("B11 calculated\n");
+		
+		int* B12[m];
+		subMatrix(n, B, 0, m, B12);
+		
+		//printf("B12 calculated\n");
+		
+		int* B21[m];
+		subMatrix(n, B, m, 0, B21);
+		
+		//printf("B21 calculated\n");
+		
+		int* B22[m];
+		subMatrix(n, B, m, m, B22);
+		
+		//printf("B22 calculated\n");
+		
+		//SPAWN THREADS
+		//DIVIDE MPI PROCESSES
+		
+		
+		int* P1[m];
+		allocateMatrix(m,P1);
+		int* P2[m];
+		allocateMatrix(m,P2);
+		int* P3[m];
+		allocateMatrix(m,P3);
+		int* P4[m];
+		allocateMatrix(m,P4);
+		int* P5[m];
+		allocateMatrix(m,P5);
+		int* P6[m];
+		allocateMatrix(m,P6);
+		int* P7[m];
+		allocateMatrix(m,P7);
+		
+		
+			if(rank == 0)
+			{
+				//matrix all. rank 0 needs access to all matrixes so recv
+				//source = which processor rank
+				//printf("process %d\n", rank);
+				
+				//P1
+				int* S1[m];
+				subsMatrix(m, B12, B22, S1);
+				strassensub(A11, S1, P1, m);
+				freeMat(m, S1);
+				//MPI_Recv(&(P1[0][0]), m*m, MPI_INT, 1, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+				
+				MPI_Recv(&(P2[0][0]), m*m, MPI_INT, 1, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+				MPI_Recv(&(P3[0][0]), m*m, MPI_INT, 1, 1, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+				MPI_Recv(&(P4[0][0]), m*m, MPI_INT, 2, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+				MPI_Recv(&(P5[0][0]), m*m, MPI_INT, 2, 1, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+				MPI_Recv(&(P6[0][0]), m*m, MPI_INT, 3, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+				MPI_Recv(&(P7[0][0]), m*m, MPI_INT, 3, 1, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+				
 			
-		}
+			}
+			else if(rank == 1){
+				
+				//printf("process %d\n", rank);
+				int* S2[m];
+				addMatrix(m, A11, A12, S2);
+				strassensub(S2, B22, P2, m);
+				freeMat(m, S2);
+				MPI_Send(&(P2[0][0]), m*m, MPI_INT, 0, 0, MPI_COMM_WORLD);
+				
+				int* S3[m];
+				addMatrix(m, A21, A22, S3);
+				strassensub(S3, B11, P3, m);
+				freeMat(m, S3);
+				MPI_Send(&(P3[0][0]), m*m, MPI_INT, 0, 1, MPI_COMM_WORLD);
+				
+				
+			}
+			
+			else if(rank == 2){
+				//printf("process %d\n", rank);
+				
+				int* S4[m];
+				subsMatrix(m, B21, B11, S4);
+				strassensub(A22, S4, P4, m);			
+				freeMat(m, S4);
+				MPI_Send(&(P4[0][0]), m*m, MPI_INT, 0, 0, MPI_COMM_WORLD);
+				
+				
+				int* S5[m];
+				int* S6[m];
+				addMatrix(m, A11, A22, S5);
+				addMatrix(m, B11, B22, S6);
+				strassensub(S5, S6, P5, m);
+				freeMat(m, S5);
+				freeMat(m, S6);
+				MPI_Send(&(P5[0][0]), m*m, MPI_INT, 0, 1, MPI_COMM_WORLD);
+			}
+			
+			
+			else if(rank == 3){
+				//printf("process %d\n", rank);
+				
+				int* S7[m];
+				int* S8[m];
+				subsMatrix(m, A12, A22, S7);
+				addMatrix(m, B21, B22, S8);		
+				strassensub(S7, S8, P6, m);
+				freeMat(m, S7);
+				freeMat(m, S8);
+				MPI_Send(&(P6[0][0]), m*m, MPI_INT, 0, 0, MPI_COMM_WORLD);
+				
+				int* S9[m];
+				int* S10[m];
+				subsMatrix(m, A11, A21, S9);
+				addMatrix(m, B11, B12, S10);
+				strassensub(S9, S10, P7, m);
+				freeMat(m, S9);
+				freeMat(m, S10);
+				MPI_Send(&(P7[0][0]), m*m, MPI_INT, 0, 1, MPI_COMM_WORLD);
+				
+			}
+			
+			//MPI_Barrier(MPI_COMM_WORLD);
+			
+			freeMat(m, A11);
+			freeMat(m, A12);
+			freeMat(m, A21);
+			freeMat(m, A22);
+			freeMat(m, B11);
+			freeMat(m, B12);
+			freeMat(m, B21);
+			freeMat(m, B22);
+			
+			
+			
+			if(rank == 0){
+		
+			int* C11[m];
+		
+			//printf("Starting C11\n");
+			int* P56[m];
+			int* P42[m];
+			
+			addMatrix(m, P5, P6, P56);
+			subsMatrix(m, P4, P2, P42);
+			
+			//printf("subsMatrix\n");
+			addMatrix(m, P56, P42, C11);
+			
+			freeMat(m, P56);
+			freeMat(m, P42);
+			//printf("Finished C11\n");
+
+		
+		
+			int* C12[m];
+		
+
+			//printf("Starting C12\n");
+			addMatrix(m, P1, P2, C12);
+			//printf("Finished C12\n");
+			
+
+		
+			int* C21[m];
+		
+
+			
+			//printf("Starting C21\n");
+			addMatrix(m, P3, P4, C21);
+			//printf("Finished C21\n");
+			
+
+		
+			int* C22[m];
+		
+
+			//printf("Starting C22\n");	
+			int* P37[m];
+			int* P51[m];
+			subsMatrix(m, P5, P7, P37);
+			subsMatrix(m, P1, P3, P51);
+			
+			//printf("subsMatrix\n");		
+			addMatrix(m, P51, P37, C22);
+				
+			freeMat(m, P51);
+			freeMat(m, P37);
+			//printf("Finished C22\n");
+
+			combineMatrix(n, C11, C12, C21, C22, C);
+		
+			freeMat(m, C11);
+			freeMat(m, C12);
+			freeMat(m, C21);
+			freeMat(m, C22);
+		
+			}
+			
+			
+		
 		
 		
 		 
@@ -664,7 +734,7 @@ int main (int argc, char *argv[] )
 	
 	
 	double wtime = MPI_Wtime();
-	strassen(mat1, mat2, res, size, rank, 0);
+	strassen(mat1, mat2, res, size, rank);
 	wtime = MPI_Wtime() - wtime;
 		
 	if(rank == 0)
@@ -691,12 +761,12 @@ int main (int argc, char *argv[] )
 		fclose(file1);
 		fclose(file2);
 		fclose(file3);
+		printf("time elapsed is %f\n", wtime);
+		printf("result in c.txt\n");
 	}
+		
 	
-	printf("time elapsed is %f\n", wtime);
-	printf("result in c.txt\n");
-	
-	printf("rank %d\n",rank);
+	//printf("rank %d\n",rank);
 
 	MPI_Finalize();
 	
