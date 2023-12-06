@@ -182,7 +182,7 @@ void strassen(int** A, int** B, int** C, int n){
 	
 	allocateMatrix(n,C);
 	
-	if(n <= 1){
+	if(n <= 32){
 		
 		regularMult(n, A, B, C);
 	}
